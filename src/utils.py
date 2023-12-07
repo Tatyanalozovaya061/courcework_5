@@ -17,45 +17,66 @@ import requests
 #     return employers
 
 
-def get_vacancies(employer_id):
+def get_vacancies(employer_list):
     """Получение данных о вакансиях по API"""
 
     params = {
         'area': 1,
         'page': 0,
-        'per_page': 10
+        'per_page': 50
     }
-    url = f"https://api.hh.ru/vacancies?employer_id={employer_id}"
-    data_vacancies = requests.get(url, params=params).json()
-
     vacancies_data = []
-    for item in data_vacancies["items"]:
-        vacancies = {
-            'vacancy_id': int(item['id']),
-            'vacancies_name': item['name'],
-            'payment': item["salary"]["from"] if item["salary"] else None,
-            'requirement': item['snippet']['requirement'],
-            'vacancies_url': item['alternate_url'],
-            'employer_id': employer_id
-        }
-        if vacancies['payment'] is not None:
-            vacancies_data.append(vacancies)
+    for employer_id in employer_list:
+        url = f"https://api.hh.ru/vacancies?employer_id={employer_id}"
+        data_vacancies = requests.get(url, params=params).json()
 
-        return vacancies_data
+        for item in data_vacancies['items']:
+            vacancies = {
+                'vacancy_id': int(item['id']),
+                'vacancies_name': item['name'],
+                'payment': item["salary"]["from"] if item["salary"] else None,
+                'requirement': item['snippet']['requirement'],
+                'vacancies_url': item['alternate_url'],
+                'employer_id': employer_id,
+            }
+            if vacancies['payment'] is not None:
+                vacancies_data.append(vacancies)
+
+    return vacancies_data
+
+def get_employer(employer_list):
+    """Получение данных о работодателей по API"""
+
+    # params = {
+    #     'area': 1,
+    #     'page': 0,
+    #     'per_page': 50
+    # }
+    employer_data = []
+    for employer_id in employer_list:
+        url = f"https://api.hh.ru/employers/{employer_id}"
+        data_vacancies = requests.get(url).json()
+        for item in data_vacancies:
+            employer = {
+                "employer_id": employer_id,
+                "company_name": ['company_name'],
+                #"open_vacancies": ['open_vacancies']
+                }
+            employer_data.append(employer)
+    return employer_data
 
 
-def get_employer(employer_id):
-    """Получение данных о работодателях по API"""
+    # employers = []
+    # for employer_id in employer_list:
+    #     url = f"https://api.hh.ru/vacancies?employer_id={employer_id}"
+    #     data_vacancies = requests.get(url, params=params).json()
+    #     employer_response = requests.get(url).json()
+    #     employer_name = employer_response['name']
+    #     employer_open_vacancies = employer_response['open_vacancies']
+    #     employers.append({'employer': [employer_id, employer_name, employer_open_vacancies]})
+    #
+    # return employers
 
-    url = f"https://api.hh.ru/employers/{employer_id}"
-    data_company = requests.get(url).json()
-    company = {
-        "employer_id": int(employer_id),
-        "company_name": data_company['name'],
-        "open_vacancies": data_company['open_vacancies']
-        }
-
-    return company
 
 def create_database(database_name: str, params: dict):
     """Создание базы данных"""
@@ -74,9 +95,9 @@ def create_database(database_name: str, params: dict):
     with conn.cursor() as cur:
         cur.execute("""
                 CREATE TABLE employers (
-                employer_id SERIAL PRIMARY KEY,
+                employer_id INT PRIMARY KEY,
                 employer_name VARCHAR(100) NOT NULL,
-                employer_url TEXT
+                open_vacancies INT
             )
         """)
     with conn.cursor() as cur:
@@ -94,34 +115,35 @@ def create_database(database_name: str, params: dict):
     conn.close()
 
 
-def save_data_to_database(employers, database_name: str, params: dict):
+def save_data_to_database(employer_list):
     """Сохранение информации о вакансиях и работодателях в базу данных """
-    conn = psycopg2.connect(dbname=database_name, **params)
+    conn = psycopg2.connect()
 
     with conn.cursor() as cur:
-        for employer in employers:
-            company_data = employer['company']
+        for employer in employer_list:
+            employer_list = get_employer()
             cur.execute(
                 """
-                INSERT INTO employers (employer_name, employer_url)
-                VALUES (%s, %s)
+                INSERT INTO employers (employer_id, employer_name, open_vacancies)
+                VALUES (%s, %s, %s)
                 RETURNING employer_id
                 """,
-                (company_data['name'], f"https://hh.ru/employer/{company_data['id']}")
+                (employer_list['employer_id'], employer_list['employer_name'], employer_list['open_vacancies'])
             )
-            employer_id = cur.fetchone()[0]
 
             for vacancy in employer['vacancies']:
                 if vacancy['salary'] is None:
                     continue
                 else:
                     salary = int(salary)
+                vacancy_list = get_vacancies(employer)
                 cur.execute(
                     """
-                    INSERT INTO employers_vacancy (employer_id, vacancy_name, salary, vacancy_url)
+                    INSERT INTO employers_vacancy (vacancy_id, employer_id, vacancy_name, salary, vacancy_url)
                     VALUES (%s, %s, %s, %s, %s)
                     """,
-                    (employer_id, vacancy['name'], salary, f"https://hh.ru/vacancy/{vacancy['id']}")
+                    (vacancy_list['vacancy_id'], vacancy_list['employer_id'], vacancy_list['vacancy_name'],
+                     vacancy_list['salary'], vacancy_list['vacancy_url'])
                 )
 
             conn.commit()

@@ -122,11 +122,3 @@ def save_vacancies_data(vacancies_data, database_name, params):
 
     conn.commit()
     conn.close()
-
-# def add_foreign_keys(cur):
-#     """Добавляет Foreign Key со ссылкой на company_id в таблице Vacancies"""
-#     cur.execute(
-#         """
-#         ALTER TABLE vacancies ADD CONSTRAINT fk_vacancies_company_id FOREIGN KEY (company_id)
-#         REFERENCES companies(company_id)"""
-#     )

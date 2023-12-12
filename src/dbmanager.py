@@ -3,8 +3,6 @@ import psycopg2
 
 class DBManager:
     def __init__(self, database_name, params):
-        # self.database_name = database_name
-        # self.params = params
         self.conn = psycopg2.connect(dbname=database_name, **params)
 
     def get_companies_and_vacancies_count(self):

@@ -2,11 +2,11 @@
 
 База данных имеет две таблицы: employers и employers_vacancy. 
 
-В таблице employerss хранятся:
+В таблице employers хранятся:
 id компании
 название компании
 
-В таблице employers хранятся:
+В таблице employers_vacancy хранятся:
 id вакансии
 id компании
 название вакансии

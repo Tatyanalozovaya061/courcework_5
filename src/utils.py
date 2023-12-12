@@ -2,21 +2,6 @@ import psycopg2
 import requests
 
 
-# def get_employers_vacancies(all_employers):
-#     """Получение данных о работодателях и их вакансиях по API"""
-#     # all_employers = [1740, 87021, 2180, 4180, 80, 2343, 78638, 3529, 4023, 543636]
-#     employers = []
-#     for company in all_employers:
-#         url = f'https://api.hh.ru/employers/{company}'
-#         employer_response = requests.get(url).json()
-#         vacancy_response = requests.get(employer_response['vacancies_url']).json()
-#         employers.append({
-#             'company': employer_response,
-#             'vacancies': vacancy_response['items']
-#         })
-#     return employers
-
-
 def get_vacancies(employer_list):
     """Получение данных о вакансиях по API"""
 
@@ -28,9 +13,11 @@ def get_vacancies(employer_list):
     vacancies_data = []
     for employer_id in employer_list:
         url = f"https://api.hh.ru/vacancies?employer_id={employer_id}"
-        data_vacancies = requests.get(url, params=params).json()
+        response_vacancies = requests.get(url, params=params).json()
+        # if data_vacancies.status_code == 200:
+        #     return data_vacancies
 
-        for item in data_vacancies['items']:
+        for item in response_vacancies['items']:
             vacancies = {
                 'vacancy_id': int(item['id']),
                 'vacancies_name': item['name'],
@@ -41,41 +28,29 @@ def get_vacancies(employer_list):
             }
             if vacancies['payment'] is not None:
                 vacancies_data.append(vacancies)
-
     return vacancies_data
+
 
 def get_employer(employer_list):
     """Получение данных о работодателей по API"""
 
-    # params = {
-    #     'area': 1,
-    #     'page': 0,
-    #     'per_page': 50
-    # }
-    employer_data = []
+    params = {
+        'area': 1,
+        'page': 0,
+        'per_page': 50
+    }
+    employers_data = []
     for employer_id in employer_list:
         url = f"https://api.hh.ru/employers/{employer_id}"
-        data_vacancies = requests.get(url).json()
-        for item in data_vacancies:
-            employer = {
+        employer_response = requests.get(url, params).json()
+
+        employer = {
                 "employer_id": employer_id,
-                "company_name": ['company_name'],
-                #"open_vacancies": ['open_vacancies']
+                "employer_name":  employer_response['name'],
+                # "employer_url": ['employer_url']
                 }
-            employer_data.append(employer)
-    return employer_data
-
-
-    # employers = []
-    # for employer_id in employer_list:
-    #     url = f"https://api.hh.ru/vacancies?employer_id={employer_id}"
-    #     data_vacancies = requests.get(url, params=params).json()
-    #     employer_response = requests.get(url).json()
-    #     employer_name = employer_response['name']
-    #     employer_open_vacancies = employer_response['open_vacancies']
-    #     employers.append({'employer': [employer_id, employer_name, employer_open_vacancies]})
-    #
-    # return employers
+        employers_data.append(employer)
+    return employers_data
 
 
 def create_database(database_name: str, params: dict):
@@ -96,8 +71,7 @@ def create_database(database_name: str, params: dict):
         cur.execute("""
                 CREATE TABLE employers (
                 employer_id INT PRIMARY KEY,
-                employer_name VARCHAR(100) NOT NULL,
-                open_vacancies INT
+                employer_name VARCHAR(100) NOT NULL
             )
         """)
     with conn.cursor() as cur:
@@ -115,36 +89,44 @@ def create_database(database_name: str, params: dict):
     conn.close()
 
 
-def save_data_to_database(employer_list):
+def save_employer_data(employer_data, database_name, params):
     """Сохранение информации о вакансиях и работодателях в базу данных """
-    conn = psycopg2.connect()
+    conn = psycopg2.connect(dbname=database_name, **params)
 
     with conn.cursor() as cur:
-        for employer in employer_list:
-            employer_list = get_employer()
+        for employer in employer_data:
+            # employer_list = get_employer(employer_list)
             cur.execute(
                 """
-                INSERT INTO employers (employer_id, employer_name, open_vacancies)
-                VALUES (%s, %s, %s)
+                INSERT INTO employers (employer_id, employer_name)
+                VALUES (%s, %s)
                 RETURNING employer_id
                 """,
-                (employer_list['employer_id'], employer_list['employer_name'], employer_list['open_vacancies'])
+                (employer['employer_id'], employer['employer_name'])
+            )
+    conn.commit()
+    conn.close()
+
+def save_vacancies_data(vacancies_data, database_name, params):
+    conn = psycopg2.connect(dbname=database_name, **params)
+    with conn.cursor() as cur:
+        for vacancy in vacancies_data:
+            cur.execute(
+                """
+                INSERT INTO employers_vacancy (vacancy_id, employer_id, vacancy_name, salary, vacancy_url)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (vacancy['vacancy_id'], vacancy['employer_id'], vacancy['vacancies_name'],
+                 vacancy['payment'], vacancy['vacancies_url'])
             )
 
-            for vacancy in employer['vacancies']:
-                if vacancy['salary'] is None:
-                    continue
-                else:
-                    salary = int(salary)
-                vacancy_list = get_vacancies(employer)
-                cur.execute(
-                    """
-                    INSERT INTO employers_vacancy (vacancy_id, employer_id, vacancy_name, salary, vacancy_url)
-                    VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    (vacancy_list['vacancy_id'], vacancy_list['employer_id'], vacancy_list['vacancy_name'],
-                     vacancy_list['salary'], vacancy_list['vacancy_url'])
-                )
+    conn.commit()
+    conn.close()
 
-            conn.commit()
-            conn.close()
+# def add_foreign_keys(cur):
+#     """Добавляет Foreign Key со ссылкой на company_id в таблице Vacancies"""
+#     cur.execute(
+#         """
+#         ALTER TABLE vacancies ADD CONSTRAINT fk_vacancies_company_id FOREIGN KEY (company_id)
+#         REFERENCES companies(company_id)"""
+#     )

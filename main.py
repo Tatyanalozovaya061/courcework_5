@@ -1,32 +1,61 @@
-import os
-from src.utils import get_vacancies, get_employer, create_database, save_data_to_database
+from src.utils import get_vacancies, get_employer, create_database, save_vacancies_data, save_employer_data
 from src.config import config
 from pprint import pprint
-import requests
+from src.dbmanager import DBManager
+
 
 def main():
-    # Получаем данные о компаниях и их вакансиях по API, создаем базу данных и таблицы, и заполняем их.
-    employer_list = [1740, 87021, 2180, 4180, 80, 2343, 78638, 3529, 4023, 543636]
-
- #    employer_list = [{'employer': [1740, 'Яндекс']},
- # {'employer': [2180, 'Ozon']},
- # {'employer': [67611, 'Тензор']}]
- # # {'employer': [3529, 'СБЕР', 6593]},
- # # {'employer': [4181, 'Банк ВТБ (ПАО)', 2452]},
- # # {'employer': [6591, 'ПСБ (ПАО «Промсвязьбанк»)', 1154]},
- # # {'employer': [1455, 'HeadHunter', 66]},
- # # {'employer': [15478, 'VK', 478]},
- # # {'employer': [64174, '2ГИС', 380]},
- # # {'employer': [3713346, 'Славнефть-ЯНОС', 13]}]
+    """
+    Основная функция программы
+    """
+    print("Привет! Это программа поможет найти вакансии на hh.ru и объединить их в единую базу данных\n"
+          "Введите желаемое название базы данных, в которой будет храниться информация: ")
+    database_name = input()
     params = config()
-    # p = get_vacancies(employer_list)
-    # pprint(p)
-    s = get_employer(employer_list)
-    pprint(s)
 
+    employer_list = [3959909, 1740, 87021, 2180, 80, 2343, 78638, 3529, 4023, 543636]
 
-    # create_database('hh', params)
-    # save_data_to_database(, 'hh', params)
+    while True:
+        command = int(input("1. Получить список всех компаний и количество вакансий у каждой компании;\n"
+                            "2. Получить список всех вакансий с указанием названия компании, названия вакансии и "
+                            "зарплаты и ссылки на вакансию;\n"
+                            "3. Получить среднюю зарплату по вакансиям;\n"
+                            "4. Получить список всех вакансий, у которых зарплата выше средней по всем вакансиям;\n"
+                            "5. Получить список всех вакансий по ключевому слову;\n"
+                            "0. Завершить программу.\n"
+                            "Введите команду: "))
+
+        create_database(database_name, params)
+        save_employer_data(get_employer(employer_list), database_name, params)
+        save_vacancies_data(get_vacancies(employer_list), database_name, params)
+        dbmanager = DBManager(database_name, params)
+        print("База данных создана")
+
+        if command == "0":
+            print('Завершение работы.')
+            break
+        elif command == '1':
+            print(dbmanager.get_companies_and_vacancies_count())
+            print()
+        elif command == '2':
+            print(dbmanager.get_all_vacancies())
+            print()
+        elif command == '3':
+            print(dbmanager.get_avg_salary())
+            print()
+        elif command == '4':
+            print(dbmanager.get_vacancies_with_higher_salary())
+            print()
+        elif command == '5':
+            keyword = input('Введите ключевое слово: ')
+            answer = dbmanager.get_vacancies_with_keyword(keyword)
+            if answer:
+                print(answer)
+            else:
+                print('Ничего не найдено.')
+            print()
+        else:
+            print('Некорректный ввод. Повторите попытку.')
 
 
 if __name__ == '__main__':

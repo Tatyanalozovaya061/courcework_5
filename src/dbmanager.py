@@ -29,8 +29,8 @@ class DBManager:
             """)
             result = cur.fetchall()
         return result
-    
-     def get_avg_salary(self):
+
+    def get_avg_salary(self):
         """Получает среднюю зарплату по вакансиям"""
         with self.conn.cursor() as cur:
             cur.execute("""

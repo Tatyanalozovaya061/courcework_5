@@ -10,11 +10,14 @@ class DBManager:
         with self.conn.cursor() as cur:
             cur.execute("""
             SELECT employer_name, COUNT(vacancy_id) 
-            FROM employer 
+            FROM employers 
             JOIN employers_vacancy USING(employer_id)
             GROUP BY employer_name
             """)
             result = cur.fetchall()
+        self.conn.commit()
+        self.conn.close()
+
         return result
 
     def get_all_vacancies(self):
@@ -26,18 +29,21 @@ class DBManager:
             JOIN employers USING(employer_id)
             """)
             result = cur.fetchall()
+        self.conn.commit()
+        self.conn.close()
+
         return result
 
     def get_avg_salary(self):
         """Получает среднюю зарплату по вакансиям"""
         with self.conn.cursor() as cur:
             cur.execute("""
-            SELECT employer_name ROUND(AVG(salary)) AS average_salary 
-            FROM employers
-            JOIN vacancy USING (employer_id)
-            GROUP BY employer_name
+            SELECT AVG(salary) FROM employers_vacancy AS average_salary
             """)
             result = cur.fetchall()
+        self.conn.commit()
+        self.conn.close()
+
         return result
 
     def get_vacancies_with_higher_salary(self):
@@ -46,20 +52,26 @@ class DBManager:
             cur.execute("""
             SELECT *
             FROM employers_vacancy
-            WHERE salary > (SELECT AVG(salary) FROM employers_vacancy
+            WHERE salary > (SELECT AVG(salary) FROM employers_vacancy)
             """)
             result = cur.fetchall()
+        self.conn.commit()
+        self.conn.close()
+
         return result
 
     def get_vacancies_with_keyword(self, keyword):
         """Получает список всех вакансий, в названии которых содержатся переданные в метод слова, например python"""
         with self.conn.cursor() as cur:
             cur.execute(f"""
-            SELECT name_vacancy
+            SELECT vacancy_name
             FROM employers_vacancy
-            WHERE name_vacancy LIKE '%{keyword}%'
+            WHERE vacancy_name LIKE '%{keyword}%'
             """)
             result = cur.fetchall()
+        self.conn.commit()
+        self.conn.close()
+
         return result
 
     def conn_close(self):

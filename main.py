@@ -30,22 +30,28 @@ def main():
         save_employer_data(get_employer(employer_list), database_name, params)
         save_vacancies_data(get_vacancies(employer_list), database_name, params)
         dbmanager = DBManager(database_name, params)
-        print("База данных создана")
+
 
         if command == "0":
             print('Завершение работы.')
             break
         elif command == '1':
-            print(dbmanager.get_companies_and_vacancies_count())
+            values = dbmanager.get_companies_and_vacancies_count()
+            for item in values:
+                print(f'Компания: {item[0]}, количество вакансий: {item[1]}')
             print()
         elif command == '2':
-            print(dbmanager.get_all_vacancies())
+            values = dbmanager.get_all_vacancies()
+            for item in values:
+                print(f'Компания: {item[0]}, название вакансии: {item[1]}')
             print()
         elif command == '3':
             print(dbmanager.get_avg_salary())
             print()
         elif command == '4':
-            print(dbmanager.get_vacancies_with_higher_salary())
+            values = dbmanager.get_vacancies_with_higher_salary()
+            for item in values:
+                print(f'Вакансия: {item[2]}, зарплата: {item[3]}')
             print()
         elif command == '5':
             keyword = input('Введите ключевое слово: ')
